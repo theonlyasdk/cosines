@@ -17,15 +17,132 @@
             overflow: hidden;
             background-color: black;
         }
+        #control-panel {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(30,30,30,0.95);
+            color: #fff;
+            border-radius: 12px;
+            padding: 18px 18px 12px 18px;
+            z-index: 10;
+            min-width: 220px;
+            box-shadow: 0 2px 12px #0008;
+            font-family: sans-serif;
+            transition: transform 0.3s cubic-bezier(0.075, 0.82, 0.165, 1);
+        }
+        #control-panel.hide {
+            transform: translateX(120%) scaleY(0.8);
+            opacity: 0;
+            pointer-events: none;
+        }
+        #control-panel label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+        #control-panel input[type=range] {
+            width: 100%;
+        }
+        #panel-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        #toggle-panel-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 20;
+            background: #222;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            font-size: 1.5em;
+            cursor: pointer;
+            box-shadow: 0 2px 8px #0006;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s cubic-bezier(0.075, 0.82, 0.165, 1), right 0.3s cubic-bezier(.4,2,.6,1);
+        }
+
+        #toggle-panel-btn.move-left {
+            transform: translateX(-350px);
+        }
+        #pause-btn {
+            background: #444;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 18px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-left: 0;
+            transition: background 0.2s;
+        }
+        #pause-btn.paused {
+            background: #c33;
+        }
+        @media (max-width: 600px) {
+            #control-panel {
+                left: 0;
+                right: 0;
+                top: auto;
+                bottom: 0;
+                border-radius: 18px 18px 0 0;
+                min-width: unset;
+                width: 100vw;
+                padding: 18px 10vw 12px 10vw;
+                font-size: 1.1em;
+            }
+            #toggle-panel-btn {
+                left: unset;
+                right: 16px;
+                top: unset;
+                bottom: 16px;
+                transition: transform 0.3s cubic-bezier(.4,2,.6,1), bottom 0.3s cubic-bezier(.4,2,.6,1);
+            }
+            #toggle-panel-btn.move-left {
+                transform: translateY(-120px);
+            }
+        }
     </style>
 </head>
 
 <body>
+    <button id="toggle-panel-btn" title="Show/hide controls">&#9881;</button>
+    <div id="control-panel">
+        <div id="panel-actions">
+            <button id="pause-btn" type="button">Pause</button>
+        </div>
+        <label>
+            Speed:
+            <input id="speed-slider" type="range" min="0.01" max="0.2" step="0.01" value="0.07">
+            <span id="speed-value">0.07</span>
+        </label>
+        <label>
+            Amplitude:
+            <input id="amplitude-slider" type="range" min="5" max="60" step="1" value="30">
+            <span id="amplitude-value">30</span>
+        </label>
+        <label>
+            Frequency:
+            <input id="frequency-slider" type="range" min="1" max="20" step="1" value="6">
+            <span id="frequency-value">6</span>
+        </label>
+        <label>
+            Number of Cosines:
+            <input id="harmonics-slider" type="range" min="2" max="32" step="1" value="12">
+            <span id="harmonics-value">12</span>
+        </label>
+    </div>
     <div id="app"></div>
 </body>
 
 <script>
-    // some boilerplate cuz i hate typing
     const id = (_id) => document.getElementById(_id);
     const query = (_selector) => document.querySelector(_selector);
     const queryAll = (_selector) => document.querySelectorAll(_selector);
@@ -61,18 +178,26 @@
         precision mediump float;
         uniform float u_time;
         uniform vec2 u_resolution;
+        uniform float u_amplitude;
+        uniform float u_frequency;
+        uniform int u_harmonics;
 
         void main() {
             vec2 uv = gl_FragCoord.xy / u_resolution;
             float y = uv.y * u_resolution.y;
             vec3 color = vec3(0.0);
-            const int harmonics = 32;
-            for (int k = 1; k < harmonics; k++) {
-                float amplitude = 20.0;
-                float freq = float(k);
-                float f = amplitude * cos(freq * (y / 128.0 + u_time));
-                float gap = 10.0;
-                float x = f + amplitude * 2.0 * float(k) + gap * float(k);
+            int harmonics = u_harmonics;
+            float totalWidth = u_resolution.x;
+            float amp = u_amplitude;
+            float waveWidth = amp * 2.0;
+            float gap = (totalWidth - float(harmonics) * waveWidth) / float(harmonics + 1);
+            for (int k = 1; k <= 32; k++) {
+                if (k > harmonics) break;
+                float freq = u_frequency * float(k);
+                float phase = u_time + float(k) * 0.2;
+                float f = amp * cos(freq * (y / 128.0 + phase));
+                float baseX = gap * float(k) + waveWidth * (float(k) - 0.5);
+                float x = baseX + f;
                 float dist = abs(gl_FragCoord.x - x);
                 float t = float(k) / float(harmonics);
                 vec3 waveColor = mix(vec3(1.0, 1.0, 0.0), vec3(0.5, 1.0, 0.5), t);
@@ -122,8 +247,9 @@
     const positionLocation = gl.getAttribLocation(program, "a_position");
     const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
     const timeLocation = gl.getUniformLocation(program, "u_time");
-    const mouseLocation = gl.getUniformLocation(program, "u_mouse");
-    const mouseDownLocation = gl.getUniformLocation(program, "u_mouseDown");
+    const amplitudeLocation = gl.getUniformLocation(program, "u_amplitude");
+    const frequencyLocation = gl.getUniformLocation(program, "u_frequency");
+    const harmonicsLocation = gl.getUniformLocation(program, "u_harmonics");
 
     function draw() {
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
@@ -137,12 +263,15 @@
 
         gl.uniform2f(resolutionLocation, gl.canvas.width, gl.canvas.height);
         gl.uniform1f(timeLocation, globalTime);
+        gl.uniform1f(amplitudeLocation, amplitude);
+        gl.uniform1f(frequencyLocation, frequency);
+        gl.uniform1i(harmonicsLocation, harmonics);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-        globalTime += 0.01;
+        if (running) globalTime += speed;
 
-        if (running) requestAnimationFrame(draw);
+        if (running || !running) requestAnimationFrame(draw);
     }
 
     canvas.width = viewportWidth;
@@ -161,15 +290,77 @@
         mouseDown = false;
     });
 
-    document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape') {
-            running = false;
-        }
-    });
-
     app.appendChild(canvas);
 
     requestAnimationFrame(draw);
+
+    const toggleBtn = id('toggle-panel-btn');
+    const controlPanel = id('control-panel');
+    let panelVisible = true;
+    function updateCogPosition() {
+        if (panelVisible) {
+            toggleBtn.classList.add('move-left');
+        } else {
+            toggleBtn.classList.remove('move-left');
+        }
+    }
+    toggleBtn.onclick = () => {
+        panelVisible = !panelVisible;
+        controlPanel.classList.toggle('hide', !panelVisible);
+        updateCogPosition();
+    };
+    updateCogPosition();
+
+    const pauseBtn = id('pause-btn');
+    pauseBtn.onclick = function () {
+        running = !running;
+        pauseBtn.classList.toggle('paused', !running);
+        pauseBtn.textContent = running ? 'Pause' : 'Resume';
+        if (running) requestAnimationFrame(draw);
+    };
+
+    const speedSlider = id('speed-slider');
+    const amplitudeSlider = id('amplitude-slider');
+    const frequencySlider = id('frequency-slider');
+    const harmonicsSlider = id('harmonics-slider');
+    const speedValue = id('speed-value');
+    const amplitudeValue = id('amplitude-value');
+    const frequencyValue = id('frequency-value');
+    const harmonicsValue = id('harmonics-value');
+
+    let speed = parseFloat(speedSlider.value);
+    let amplitude = parseFloat(amplitudeSlider.value);
+    let frequency = parseFloat(frequencySlider.value);
+    let harmonics = parseInt(harmonicsSlider.value);
+
+    const AMPLITUDE_MIN = 5, AMPLITUDE_MAX = 60;
+    const FREQ_MIN = 1, FREQ_MAX = 20;
+    const HARMONICS_MIN = 2, HARMONICS_MAX = 32;
+
+    function updateSliderDisplays() {
+        speedValue.textContent = speed.toFixed(2);
+        amplitudeValue.textContent = amplitude;
+        frequencyValue.textContent = frequency;
+        harmonicsValue.textContent = harmonics;
+    }
+    updateSliderDisplays();
+
+    speedSlider.oninput = function () {
+        speed = parseFloat(this.value);
+        updateSliderDisplays();
+    };
+    amplitudeSlider.oninput = function () {
+        amplitude = Math.max(AMPLITUDE_MIN, Math.min(AMPLITUDE_MAX, parseFloat(this.value)));
+        updateSliderDisplays();
+    };
+    frequencySlider.oninput = function () {
+        frequency = Math.max(FREQ_MIN, Math.min(FREQ_MAX, parseFloat(this.value)));
+        updateSliderDisplays();
+    };
+    harmonicsSlider.oninput = function () {
+        harmonics = Math.max(HARMONICS_MIN, Math.min(HARMONICS_MAX, parseInt(this.value)));
+        updateSliderDisplays();
+    };
 </script>
 
 </html>
