@@ -17,11 +17,12 @@
             overflow: hidden;
             background-color: black;
         }
+
         #control-panel {
             position: absolute;
             top: 16px;
             right: 16px;
-            background: rgba(30,30,30,0.95);
+            background: rgba(30, 30, 30, 0.95);
             color: #fff;
             border-radius: 12px;
             padding: 18px 18px 12px 18px;
@@ -31,24 +32,29 @@
             font-family: sans-serif;
             transition: transform 0.3s cubic-bezier(0.075, 0.82, 0.165, 1);
         }
+
         #control-panel.hide {
             transform: translateX(120%) scaleY(0.8);
             opacity: 0;
             pointer-events: none;
         }
+
         #control-panel label {
             display: block;
             margin-bottom: 10px;
             font-size: 1em;
         }
+
         #control-panel input[type=range] {
             width: 100%;
         }
+
         #panel-actions {
             display: flex;
             gap: 10px;
             margin-bottom: 10px;
         }
+
         #toggle-panel-btn {
             position: absolute;
             top: 16px;
@@ -66,12 +72,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.3s cubic-bezier(0.075, 0.82, 0.165, 1), right 0.3s cubic-bezier(.4,2,.6,1);
+            transition: transform 0.3s cubic-bezier(0.075, 0.82, 0.165, 1), right 0.3s cubic-bezier(.4, 2, .6, 1);
         }
 
         #toggle-panel-btn.move-left {
             transform: translateX(-350px);
         }
+
         #pause-btn {
             background: #444;
             color: #fff;
@@ -83,30 +90,38 @@
             margin-left: 0;
             transition: background 0.2s;
         }
+
         #pause-btn.paused {
             background: #c33;
         }
+
         @media (max-width: 600px) {
             #control-panel {
                 left: 0;
-                right: 0;
                 top: auto;
                 bottom: 0;
-                border-radius: 18px 18px 0 0;
+                border-radius: 0;
                 min-width: unset;
-                width: 100vw;
-                padding: 18px 10vw 12px 10vw;
+                width: 95%;
                 font-size: 1.1em;
             }
+
             #toggle-panel-btn {
                 left: unset;
                 right: 16px;
                 top: unset;
                 bottom: 16px;
-                transition: transform 0.3s cubic-bezier(.4,2,.6,1), bottom 0.3s cubic-bezier(.4,2,.6,1);
+                transition: transform 0.3s cubic-bezier(0.075, 0.82, 0.165, 1), bottom 0.3s cubic-bezier(0.075, 0.82, 0.165, 1);
             }
+
+            #control-panel.hide {
+                transform: translateY(120%) scaleY(0.8);
+                opacity: 0;
+                pointer-events: none;
+            }
+
             #toggle-panel-btn.move-left {
-                transform: translateY(-120px);
+                transform: translateY(-370px);
             }
         }
     </style>
